@@ -6,6 +6,7 @@ import sys
 import shutil
 import re
 
+from casino.stats import GameStats, display_stats
 from casino.types import GameContext
 from casino.utils import clear_screen, cprint, cinput, display_topbar
 from casino.accounts import Account
@@ -480,6 +481,8 @@ def play_roulette(context: GameContext) -> None:
                          f"accounts is a {type(accounts)}")
 
     roulette = AmericanRoulette(accounts)
+    # At game start, create stats object
+    stats = GameStats("Roulette (U.S.)", context.account.balance)
     while continue_game:
         roulette.reset_round()
         clear_screen()
@@ -492,12 +495,23 @@ def play_roulette(context: GameContext) -> None:
             continue_game = False
             break
 
+        # before next bet, create temp variable for previous balance
+        prevBalance = context.account.balance
+
         status = roulette.submit_bets(context)
         if status == "BANKRUPT":
             break
 
         roulette.spin_wheel(context)
         roulette.payout()
+        # increment rounds played and either wins/losses based on balance difference
+        stats.rounds_played += 1
+        if context.account.balance > prevBalance:
+            stats.wins += 1
+        elif context.account.balance < prevBalance:
+            stats.losses += 1
+        else: # player didn't bet, increment stats.pushes as "Rounds Idle"
+            stats.pushes += 1
         refresh_roulette_topbar(context)
 
         play_again = None
@@ -517,5 +531,7 @@ def play_roulette(context: GameContext) -> None:
                 continue_game = True
                 break
 
+    stats.ending_balance = context.account.balance
+    display_stats(stats)
     #cprint("Exiting roulette...")
     #sleep(0.5)
