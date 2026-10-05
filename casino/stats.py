@@ -21,7 +21,11 @@ class GameStats:
     def win_rate(self) -> str:
         if self.rounds_played == 0:
             return "N/A"
-        return f"{self.wins / self.rounds_played * 100:.1f}%"
+        if self.game_name in ("Blackjack (U.S.)", "Blackjack (E.U.)", "Poker"):
+            return f"{self.wins / self.rounds_played * 100:.1f}%"
+        else:
+            # for roulette, not counting rounds idle against player win rate
+            return f"{self.wins / (self.rounds_played - self.pushes) * 100:.1f}%"
 
 
 def display_stats(stats: GameStats) -> None:
@@ -31,12 +35,16 @@ def display_stats(stats: GameStats) -> None:
     net = stats.net
     net_str = f"+{net}" if net > 0 else str(net)
 
+    # check if game is a card game or not, setting roundType and tieType accordingly
+    roundType = "Hands Played" if stats.game_name in ("Blackjack (U.S.)", "Blackjack (E.U.)", "Poker") else "Rounds Played"
+    tieType = "Pushes" if stats.game_name in ("Blackjack (U.S.)", "Blackjack (E.U.)", "Poker") else "Rounds Idle"
+
     rows = [
         ("Game", stats.game_name),
-        ("Hands Played", str(stats.rounds_played)),
+        (roundType, str(stats.rounds_played)),
         ("Wins", str(stats.wins)),
         ("Losses", str(stats.losses)),
-        ("Pushes", str(stats.pushes)),
+        (tieType, str(stats.pushes)),
         ("Win Rate", stats.win_rate),
         ("", ""),
         ("Starting Balance", str(stats.starting_balance)),

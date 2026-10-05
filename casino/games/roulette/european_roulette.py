@@ -7,6 +7,7 @@ import shutil
 import re
 import casino.utils as utils
 
+from casino.stats import GameStats, display_stats
 from casino.types import GameContext
 from casino.utils import clear_screen, cprint, cinput, display_topbar
 from casino.accounts import Account
@@ -649,6 +650,8 @@ def play_european_roulette(context: GameContext) -> None:
     accounts = [context.account]
 
     roulette = EuropeanRoulette(accounts)
+    # At game start, create stats object
+    stats = GameStats("Roulette (E.U.)", context.account.balance)
     while True:
         roulette.reset_round()
         render_header(context)
@@ -657,14 +660,25 @@ def play_european_roulette(context: GameContext) -> None:
         choice = cinput("Press [Enter] to start a new round and [q] to quit: ").strip().lower()
 
         if choice in {"q", "quit"}:
-            return
+            break
+
+        # before next bet, create temp variable for previous balance
+        prevBalance = context.account.balance
 
         status = roulette.submit_bets(context)
         if status == "BANKRUPT":
-            return
+            break
 
         roulette.spin_wheel(context)
         roulette.payout()
+        # increment rounds played and either wins/losses based on balance difference
+        stats.rounds_played += 1
+        if context.account.balance > prevBalance:
+            stats.wins += 1
+        elif context.account.balance < prevBalance:
+            stats.losses += 1
+        else: # player didn't bet, increment stats.pushes as "Rounds Idle"
+            stats.pushes += 1
         refresh_roulette_topbar(context)
 
         # play again?
@@ -672,7 +686,7 @@ def play_european_roulette(context: GameContext) -> None:
         if play_again in {"", "y", "yes"}:
             pass  # next round
         elif play_again in {"n", "no"}:
-            return
+            break
         else:
             play_again = prompt_with_error(
                 ctx=context,
@@ -683,4 +697,7 @@ def play_european_roulette(context: GameContext) -> None:
                 transform=lambda s: s.strip().lower(),
             )
             if play_again in {"n", "no"}:
-                return
+                break
+
+    stats.ending_balance = context.account.balance
+    display_stats(stats)
